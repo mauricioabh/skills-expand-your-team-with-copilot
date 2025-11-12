@@ -472,6 +472,75 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Function to handle sharing activities
+  function handleShare(platform, activityName, details) {
+    const currentUrl = window.location.origin;
+    const shareUrl = `${currentUrl}/static/index.html`;
+    const formattedSchedule = formatSchedule(details);
+    const shareText = `Check out ${activityName} at Mergington High School! ${details.description} Schedule: ${formattedSchedule}`;
+    const shareTitle = `${activityName} - Mergington High School`;
+
+    switch (platform) {
+      case "facebook":
+        // Facebook share dialog
+        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+        window.open(facebookUrl, "_blank", "width=600,height=400");
+        showMessage("Opening Facebook share dialog...", "info");
+        break;
+
+      case "twitter":
+        // Twitter share
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+        window.open(twitterUrl, "_blank", "width=600,height=400");
+        showMessage("Opening Twitter share dialog...", "info");
+        break;
+
+      case "email":
+        // Email share
+        const emailSubject = encodeURIComponent(shareTitle);
+        const emailBody = encodeURIComponent(`${shareText}\n\nLearn more: ${shareUrl}`);
+        window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+        showMessage("Opening email client...", "info");
+        break;
+
+      case "copy":
+        // Copy link to clipboard
+        const linkToCopy = `${shareUrl} - ${shareText}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(linkToCopy)
+            .then(() => {
+              showMessage("Link copied to clipboard!", "success");
+            })
+            .catch(() => {
+              fallbackCopyToClipboard(linkToCopy);
+            });
+        } else {
+          fallbackCopyToClipboard(linkToCopy);
+        }
+        break;
+
+      default:
+        showMessage("Share platform not supported", "error");
+    }
+  }
+
+  // Fallback copy to clipboard for browsers that don't support navigator.clipboard
+  function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      showMessage("Link copied to clipboard!", "success");
+    } catch (err) {
+      showMessage("Failed to copy link. Please copy manually.", "error");
+    }
+    document.body.removeChild(textArea);
+  }
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -519,6 +588,29 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
+    // Create share buttons
+    const shareButtons = `
+      <div class="share-buttons">
+        <span class="share-label">Share:</span>
+        <button class="share-btn facebook-btn tooltip" data-activity="${name}" data-platform="facebook" aria-label="Share on Facebook">
+          <span class="share-icon">📘</span>
+          <span class="tooltip-text">Share on Facebook</span>
+        </button>
+        <button class="share-btn twitter-btn tooltip" data-activity="${name}" data-platform="twitter" aria-label="Share on Twitter">
+          <span class="share-icon">🐦</span>
+          <span class="tooltip-text">Share on Twitter</span>
+        </button>
+        <button class="share-btn email-btn tooltip" data-activity="${name}" data-platform="email" aria-label="Share via Email">
+          <span class="share-icon">✉️</span>
+          <span class="tooltip-text">Share via Email</span>
+        </button>
+        <button class="share-btn copy-btn tooltip" data-activity="${name}" data-platform="copy" aria-label="Copy Link">
+          <span class="share-icon">🔗</span>
+          <span class="tooltip-text">Copy Link</span>
+        </button>
+      </div>
+    `;
+
     activityCard.innerHTML = `
       ${tagHtml}
       <h4>${name}</h4>
@@ -528,6 +620,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="tooltip-text">Regular meetings at this time throughout the semester</span>
       </p>
       ${capacityIndicator}
+      ${shareButtons}
       <div class="participants-list">
         <h5>Current Participants:</h5>
         <ul>
@@ -586,6 +679,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handlers for share buttons
+    const shareButtonElements = activityCard.querySelectorAll(".share-btn");
+    shareButtonElements.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const platform = button.dataset.platform;
+        const activityName = button.dataset.activity;
+        handleShare(platform, activityName, details);
+      });
+    });
 
     activitiesList.appendChild(activityCard);
   }
